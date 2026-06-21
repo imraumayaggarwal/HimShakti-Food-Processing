@@ -11,12 +11,13 @@ export default function Card({
     <div
       className="
         bg-white
+        dark:bg-zinc-900
 
         border
         border-black/10
+        dark:border-white/10
 
         rounded-3xl
-
         p-8
 
         transition-all
@@ -30,7 +31,7 @@ export default function Card({
         {title}
       </h3>
 
-      <p className="text-black/60 leading-relaxed">
+      <p className="text-black/60 dark:text-white/60 leading-relaxed">
         {description}
       </p>
     </div>

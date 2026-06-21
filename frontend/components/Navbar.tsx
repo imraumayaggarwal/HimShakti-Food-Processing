@@ -1,3 +1,5 @@
+import ThemeToggle from "./ThemeToggle";
+
 export default function Navbar() {
   return (
     <header className="fixed top-5 left-1/2 -translate-x-1/2 z-50">
@@ -13,10 +15,14 @@ export default function Navbar() {
           duration-500
 
           rounded-full
+
           border
           border-black/10
+          dark:border-white/10
 
           bg-white/70
+          dark:bg-zinc-900/70
+
           backdrop-blur-xl
 
           px-8
@@ -65,6 +71,7 @@ export default function Navbar() {
           <a href="/login" className="hover:text-[#356C4C] transition-colors">
             Login
           </a>
+          <ThemeToggle />
         </div>
       </nav>
     </header>

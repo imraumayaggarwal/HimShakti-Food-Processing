@@ -19,18 +19,18 @@ export default function Home() {
 
         <div className="grid md:grid-cols-3 gap-6">
           <Card
-            title="Quality Intelligence"
-            description="Detect inconsistencies and maintain high production standards through AI-assisted monitoring."
+            title="AI Description Generation"
+            description="Create professional product descriptions instantly from basic product information."
           />
-
+            
           <Card
-            title="Process Optimization"
-            description="Identify bottlenecks and improve operational efficiency across workflows."
+            title="Marketing Content"
+            description="Generate promotional content and product highlights for online marketplaces."
           />
-
+            
           <Card
-            title="Predictive Analytics"
-            description="Forecast demand patterns and make data-driven decisions with confidence."
+            title="Product Management"
+            description="Manage products and organize generated content from one dashboard."
           />
         </div>
       </section>
