@@ -10,7 +10,7 @@ export default function LoginPage() {
 
       <main className="min-h-screen flex items-center justify-center px-6">
         <div className="w-full max-w-md space-y-6">
-          <h1 className="text-4xl font-semibold">
+          <h1 className="text-4xl font-semibold text-black dark:text-white">
             Login
           </h1>
 

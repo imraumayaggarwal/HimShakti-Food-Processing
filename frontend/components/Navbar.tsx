@@ -35,7 +35,7 @@ export default function Navbar() {
           hover:shadow-lg
         "
       >
-        <h1 className="font-semibold whitespace-nowrap tracking-tight">
+        <h1 className="font-semibold whitespace-nowrap tracking-tight text-black dark:text-white">
           HimShakti
         </h1>
 
@@ -54,6 +54,9 @@ export default function Navbar() {
 
             group-hover:opacity-100
             group-hover:translate-x-0
+
+            text-black
+            dark:text-white
           "
         >
           <a href="/" className="hover:text-[#356C4C] transition-colors">

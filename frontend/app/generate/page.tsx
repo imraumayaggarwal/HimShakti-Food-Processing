@@ -12,7 +12,7 @@ export default function GeneratePage() {
       <Navbar />
 
       <main className="max-w-3xl mx-auto px-6 pt-40">
-        <h1 className="text-5xl font-semibold mb-10">
+        <h1 className="text-5xl font-semibold mb-10 text-black dark:text-white">
           AI Description Generator
         </h1>
 
@@ -44,7 +44,7 @@ export default function GeneratePage() {
         </div>
 
         {description && (
-          <div className="mt-10 border border-black/10 rounded-3xl p-6">
+          <div className="mt-10 border border-black/10 dark:border-white/10 rounded-3xl p-6 text-black dark:text-white">
             <h2 className="font-semibold mb-4">
               Generated Description
             </h2>

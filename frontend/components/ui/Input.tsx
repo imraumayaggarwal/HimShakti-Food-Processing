@@ -18,7 +18,7 @@ export default function Input({
   return (
     <div className="flex flex-col gap-2 w-full">
       {label && (
-        <label className="text-sm font-medium">
+        <label className="text-sm font-medium text-black dark:text-white">
           {label}
         </label>
       )}
@@ -33,7 +33,13 @@ export default function Input({
           rounded-2xl
           border
           border-black/10
+          dark:border-white/10
           bg-white
+          dark:bg-zinc-900
+          text-black
+          dark:text-white
+          placeholder:text-black/40
+          dark:placeholder:text-white/40
           px-4
           py-3
           outline-none

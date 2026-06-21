@@ -3,7 +3,7 @@ export default function Footer() {
     <footer className="border-t border-black/10 dark:border-white/10 mt-32">
       <div className="max-w-6xl mx-auto px-6 py-10 flex flex-col md:flex-row justify-between items-center gap-4">
         <div>
-          <h3 className="font-semibold">
+          <h3 className="font-semibold text-black dark:text-white">
             HimShakti
           </h3>
 

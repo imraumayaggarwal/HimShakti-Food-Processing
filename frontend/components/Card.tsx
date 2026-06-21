@@ -27,7 +27,7 @@ export default function Card({
         hover:shadow-xl
       "
     >
-      <h3 className="text-2xl font-semibold tracking-tight mb-4">
+      <h3 className="text-2xl font-semibold tracking-tight mb-4 text-black dark:text-white">
         {title}
       </h3>
 

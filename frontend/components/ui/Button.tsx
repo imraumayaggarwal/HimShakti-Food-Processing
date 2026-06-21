@@ -18,10 +18,10 @@ export default function Button({
       "bg-[#356C4C] text-white hover:bg-[#2B563D]",
 
     secondary:
-      "bg-black/5 text-black hover:bg-black/10",
+      "bg-black/5 dark:bg-white/10 text-black dark:text-white hover:bg-black/10 dark:hover:bg-white/20",
 
     outline:
-      "border border-black/10 hover:bg-black/5",
+      "border border-black/10 dark:border-white/10 text-black dark:text-white hover:bg-black/5 dark:hover:bg-white/5",
   };
 
   const sizes = {

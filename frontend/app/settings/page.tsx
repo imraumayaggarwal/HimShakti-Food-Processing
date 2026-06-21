@@ -11,17 +11,17 @@ export default function SettingsPage() {
       <Navbar />
 
       <main className="max-w-4xl mx-auto px-6 pt-40">
-        <h1 className="text-5xl font-semibold mb-10">
+        <h1 className="text-5xl font-semibold mb-10 text-black dark:text-white">
           Settings
         </h1>
 
-        <div className="border border-black/10 rounded-3xl p-8">
-          <h2 className="text-xl font-semibold mb-4">
+        <div className="border border-black/10 dark:border-white/10 rounded-3xl p-8">
+          <h2 className="text-xl font-semibold mb-4 text-black dark:text-white">
             Appearance
           </h2>
 
           <button
-            className="border border-black/10 px-6 py-3 rounded-full"
+            className="border border-black/10 dark:border-white/10 px-6 py-3 rounded-full text-black dark:text-white"
             onClick={() =>
               setTheme(theme === "dark" ? "light" : "dark")
             }
