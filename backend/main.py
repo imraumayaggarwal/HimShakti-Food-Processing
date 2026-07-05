@@ -1,26 +1,36 @@
-"""
-HimShakti Food Processing — FastAPI Backend
-Week 4 Deliverable: 7 REST Endpoints + Error Handling + CORS
-"""
-
-from fastapi import FastAPI, HTTPException, Query
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
-from typing import Optional, List
-from datetime import datetime
-import uuid
 import os
+import hashlib
+import hmac
+import base64
+import json
+import uuid
+from datetime import datetime, timedelta
+from fastapi import FastAPI, HTTPException, Depends
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm import Session
 from dotenv import load_dotenv
+from sqlalchemy import text
+
+from database import engine, get_db, Base
+from db_models import UserModel
+import db_models  
+from models import SignupRequest, LoginRequest
+from routes.products import router as products_router
+from routes.generate import router as generate_router
+from auth import get_current_user
 
 load_dotenv()
+
+Base.metadata.create_all(bind=engine)
+
+SECRET_KEY = os.getenv("JWT_SECRET", "f12bceed1b75191455cf74501039aac460ee26bfe412f02c94790d994f26f194")
 
 app = FastAPI(
     title="HimShakti API",
     description="Backend API for HimShakti Food Processing D2C Platform",
-    version="1.0.0",
+    version="2.0.0",
 )
 
-# ── CORS ──────────────────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -32,238 +42,84 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ── In-memory store (Week 4; DB in Week 5) ────────────────────────────────────
-products_db: dict = {
-    "p1": {
-        "id": "p1",
-        "name": "Himalayan Millet Flour",
-        "ingredients": "Finger millet (Ragi), Mountain Spring Water",
-        "weight": "500g",
-        "category": "flour",
-        "features": ["Gluten-free", "High calcium", "Stone-ground", "No additives"],
-        "description": "Premium Himalayan Millet Flour stone-ground from hand-picked finger millet grown at 1800m altitude. Rich in calcium and iron — a nutritious alternative for rotis, dosas, and baked goods.",
-        "tone": "health-focused",
-        "price": 120,
-        "stock": 85,
-        "created_at": "2025-06-01T10:00:00",
-    },
-    "p2": {
-        "id": "p2",
-        "name": "Kumaoni Apple Pickle",
-        "ingredients": "Fresh Himalayan Apples, Mustard Oil, Rock Salt, Traditional Spices",
-        "weight": "250g",
-        "category": "pickle",
-        "features": ["Traditional recipe", "No preservatives", "Handmade", "60-day shelf life"],
-        "description": "Crafted from Himalayan apples using a generations-old Kumaoni recipe. Slow-aged in mustard oil with hand-ground spices — every jar carries the taste of the mountains.",
-        "tone": "traditional",
-        "price": 180,
-        "stock": 42,
-        "created_at": "2025-06-03T11:30:00",
-    },
-    "p3": {
-        "id": "p3",
-        "name": "Himalayan Herbal Tea",
-        "ingredients": "Tulsi, Brahmi, Ginger, Licorice Root, Cardamom",
-        "weight": "100g (50 cups)",
-        "category": "tea",
-        "features": ["Caffeine-free", "Immunity boost", "Wildcrafted herbs", "Hand-blended"],
-        "description": "A therapeutic blend of wildcrafted Himalayan herbs — Tulsi for immunity, Brahmi for clarity, Ginger for warmth. Hand-blended in small batches for maximum potency.",
-        "tone": "premium",
-        "price": 220,
-        "stock": 63,
-        "created_at": "2025-06-05T09:00:00",
-    },
-}
+app.include_router(products_router)
+app.include_router(generate_router)
 
-# ── Pydantic Models ────────────────────────────────────────────────────────────
-class ProductCreate(BaseModel):
-    name: str = Field(..., min_length=1, max_length=100)
-    ingredients: str = Field(..., min_length=1)
-    weight: str = Field(..., min_length=1)
-    category: str = Field(default="other")
-    features: List[str] = Field(default=[])
-    description: Optional[str] = None
-    tone: Optional[str] = "health-focused"
-    price: Optional[float] = None
-    stock: Optional[int] = 0
+def _b64encode(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
 
-class ProductUpdate(BaseModel):
-    name: Optional[str] = None
-    ingredients: Optional[str] = None
-    weight: Optional[str] = None
-    category: Optional[str] = None
-    features: Optional[List[str]] = None
-    description: Optional[str] = None
-    tone: Optional[str] = None
-    price: Optional[float] = None
-    stock: Optional[int] = None
+def create_token(payload: dict, expires_hours: int = 72) -> str:
+    header = _b64encode(json.dumps({"alg": "HS256", "typ": "JWT"}).encode())
+    payload["exp"] = (datetime.utcnow() + timedelta(hours=expires_hours)).isoformat()
+    body = _b64encode(json.dumps(payload).encode())
+    sig_input = f"{header}.{body}".encode()
+    sig = hmac.new(SECRET_KEY.encode(), sig_input, hashlib.sha256).digest()
+    return f"{header}.{body}.{_b64encode(sig)}"
 
-class GenerateRequest(BaseModel):
-    product_name: str = Field(..., min_length=1)
-    ingredients: str = Field(..., min_length=1)
-    weight: str = Field(..., min_length=1)
-    features: List[str] = Field(default=[])
-    tone: str = Field(default="health-focused")  # premium | traditional | health-focused
+def hash_password(password: str) -> str:
+    return hashlib.sha256(password.encode()).hexdigest()
 
-# ── Error handlers ─────────────────────────────────────────────────────────────
-@app.exception_handler(404)
-async def not_found_handler(request, exc):
-    return {"detail": "Resource not found"}, 404
 
-# ── ENDPOINT 1: GET /api/products — list all ──────────────────────────────────
-@app.get("/api/products", status_code=200)
-def list_products():
-    return {
-        "products": list(products_db.values()),
-        "total": len(products_db),
-    }
+@app.post("/api/auth/signup", status_code=201)
+def signup(body: SignupRequest, db: Session = Depends(get_db)):
+    email = body.email.lower().strip()
 
-# ── ENDPOINT 2: GET /api/products/{id} — single product ──────────────────────
-@app.get("/api/products/{product_id}", status_code=200)
-def get_product(product_id: str):
-    product = products_db.get(product_id)
-    if not product:
-        raise HTTPException(status_code=404, detail=f"Product '{product_id}' not found")
-    return product
+    existing = db.query(UserModel).filter(
+        UserModel.email == email
+    ).first()
 
-# ── ENDPOINT 3: POST /api/products — create ───────────────────────────────────
-@app.post("/api/products", status_code=201)
-def create_product(body: ProductCreate):
-    new_id = "p" + str(uuid.uuid4())[:8]
-    product = {
-        "id": new_id,
-        **body.model_dump(),
-        "created_at": datetime.now().isoformat(),
-    }
-    products_db[new_id] = product
-    return product
-
-# ── ENDPOINT 4: PUT /api/products/{id} — update ───────────────────────────────
-@app.put("/api/products/{product_id}", status_code=200)
-def update_product(product_id: str, body: ProductUpdate):
-    product = products_db.get(product_id)
-    if not product:
-        raise HTTPException(status_code=404, detail=f"Product '{product_id}' not found")
-    updates = {k: v for k, v in body.model_dump().items() if v is not None}
-    product.update(updates)
-    products_db[product_id] = product
-    return product
-
-# ── ENDPOINT 5: DELETE /api/products/{id} — delete ────────────────────────────
-@app.delete("/api/products/{product_id}", status_code=204)
-def delete_product(product_id: str):
-    if product_id not in products_db:
-        raise HTTPException(status_code=404, detail=f"Product '{product_id}' not found")
-    del products_db[product_id]
-    return None
-
-# ── ENDPOINT 6: GET /api/products/search — search by name/category ─────────────
-@app.get("/api/products/search/query", status_code=200)
-def search_products(
-    q: Optional[str] = Query(None, description="Search term"),
-    category: Optional[str] = Query(None, description="Filter by category"),
-):
-    results = list(products_db.values())
-    if q:
-        q_lower = q.lower()
-        results = [
-            p for p in results
-            if q_lower in p["name"].lower()
-            or q_lower in p.get("ingredients", "").lower()
-            or any(q_lower in f.lower() for f in p.get("features", []))
-        ]
-    if category:
-        results = [p for p in results if p.get("category", "").lower() == category.lower()]
-    if not results:
-        raise HTTPException(status_code=404, detail="No products match your search")
-    return {"products": results, "total": len(results)}
-
-# ── ENDPOINT 7: POST /api/generate — AI description generation ────────────────
-@app.post("/api/generate", status_code=200)
-def generate_description(body: GenerateRequest):
-    """
-    Calls Anthropic Claude to generate an e-commerce product description.
-    Falls back to a structured template if the API key is absent (dev mode).
-    """
-    import anthropic
-
-    tone_prompts = {
-        "premium": "Use elevated, aspirational language. Emphasise artisanal craft, rarity, and premium quality. Avoid generic claims.",
-        "traditional": "Use warm, storytelling language rooted in cultural heritage and generational recipes. Mention Uttarakhand/Himalayan provenance.",
-        "health-focused": "Use clear, benefit-driven language. Lead with nutritional advantages, certifications (if any), and clean-label credentials.",
-    }
-
-    tone_instruction = tone_prompts.get(body.tone, tone_prompts["health-focused"])
-    features_str = ", ".join(body.features) if body.features else "N/A"
-
-    prompt = f"""You are an expert e-commerce copywriter for HimShakti, a rural food processing unit in Uttarakhand, India, that sells traditional Himalayan food products.
-
-Write a compelling Amazon product description for the following product.
-
-Product Name: {body.product_name}
-Key Ingredients: {body.ingredients}
-Net Weight: {body.weight}
-Key Features: {features_str}
-Tone: {body.tone} — {tone_instruction}
-
-Requirements:
-- 80–120 words
-- Start with a strong hook (no generic openers like "Introducing")
-- Include 2–3 specific benefit statements
-- End with a subtle call to action
-- Do NOT use bullet points — write flowing prose
-- Do NOT fabricate certifications or awards
-
-Return ONLY the description text. No preamble, no quotes."""
-
-    try:
-        api_key = os.getenv("ANTHROPIC_API_KEY")
-        if not api_key:
-            raise ValueError("No API key")
-
-        client = anthropic.Anthropic(api_key=api_key)
-        message = client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=300,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        description = message.content[0].text.strip()
-
-    except Exception:
-        # Dev fallback — structured template
-        tone_label = {
-            "premium": "Crafted for the discerning palate",
-            "traditional": "A recipe passed down through generations",
-            "health-focused": "Nature's goodness, thoughtfully packaged",
-        }.get(body.tone, "")
-
-        description = (
-            f"{tone_label} — {body.product_name} is made from {body.ingredients}, "
-            f"sourced from the Himalayan foothills of Uttarakhand. "
-            f"Packed in {body.weight}, it brings you {features_str.lower()} "
-            f"in every serving. Support rural artisans and taste the mountains today."
+    if existing:
+        raise HTTPException(
+            status_code=409,
+            detail="An account with this email already exists"
         )
 
+    new_user_id = str(uuid.uuid4())
+
+    user = UserModel(
+        id=new_user_id,
+        email=email,
+        name=body.name,
+        hashed_password=hash_password(body.password),
+        created_at=datetime.utcnow(),
+    )
+
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    token = create_token(
+        {
+            "sub": user.id,
+            "email": email,
+            "name": body.name,
+        }
+    )
+
     return {
-        "description": description,
-        "product_name": body.product_name,
-        "tone": body.tone,
+        "token": token,
+        "user": {
+            "id": user.id,
+            "email": email,
+            "name": body.name,
+        },
     }
 
-# ── Root health check ──────────────────────────────────────────────────────────
+@app.post("/api/auth/login", status_code=200)
+def login(body: LoginRequest, db: Session = Depends(get_db)):
+    email = body.email.lower().strip()
+    user = db.query(UserModel).filter(UserModel.email == email).first()
+    
+    if not user or user.hashed_password != hash_password(body.password):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+        
+    token = create_token({"sub": user.id, "email": email, "name": user.name})
+    return {"token": token, "user": {"id": user.id, "email": email, "name": user.name}}
+
+@app.get("/api/auth/me", status_code=200)
+def me(current_user: dict = Depends(get_current_user)):
+    return current_user
+
 @app.get("/")
 def root():
-    return {
-        "status": "ok",
-        "service": "HimShakti API",
-        "version": "1.0.0",
-        "endpoints": [
-            "GET  /api/products",
-            "GET  /api/products/{id}",
-            "POST /api/products",
-            "PUT  /api/products/{id}",
-            "DELETE /api/products/{id}",
-            "GET  /api/products/search/query?q=&category=",
-            "POST /api/generate",
-        ],
-    }
+    return {"status": "ok", "service": "HimShakti API", "version": "2.0.0"}
