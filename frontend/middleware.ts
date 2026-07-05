@@ -9,8 +9,6 @@ export function middleware(req: NextRequest) {
   const isProtected = PROTECTED.some((p) => pathname.startsWith(p));
   if (!isProtected) return NextResponse.next();
 
-  // JWT is stored in localStorage (client-side only).
-  // We check a cookie that AuthProvider sets as a lightweight signal.
   const isLoggedIn = req.cookies.get("hs_auth")?.value === "1";
 
   if (!isLoggedIn) {
