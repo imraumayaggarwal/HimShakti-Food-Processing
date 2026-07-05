@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import toast, { Toaster } from "react-hot-toast";
 import Navbar from "../../components/Navbar";
+import { useAuth } from "@/components/AuthProvider";
 import { Button, Input, Loader } from "../../components/ui";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -22,12 +24,20 @@ const SAMPLE_PRODUCTS = [
 ];
 
 export default function GeneratePage() {
-  const [form, setForm] = useState({
-    productName: "", ingredients: "", weight: "", features: "", tone: "health-focused" as Tone,
-  });
+  const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
+
+  const [form, setForm] = useState({ productName: "", ingredients: "", weight: "", features: "", tone: "health-focused" as Tone });
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(false);
+
+  // Auth guard
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.replace("/login?next=/generate");
+    }
+  }, [user, authLoading, router]);
 
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -74,6 +84,10 @@ export default function GeneratePage() {
 
   const wordCount = description.trim() ? description.trim().split(/\s+/).length : 0;
 
+  if (authLoading || (!user && !authLoading)) {
+    return <div className="min-h-screen flex items-center justify-center"><Loader /></div>;
+  }
+
   return (
     <>
       <Toaster position="top-right" />
@@ -89,17 +103,14 @@ export default function GeneratePage() {
         </div>
 
         <div className="grid lg:grid-cols-2 gap-8">
-          {/* ── Input Panel ── */}
+          {/* Input Panel */}
           <div className="space-y-5">
             <div>
               <p className="text-xs uppercase tracking-widest text-black/40 dark:text-white/40 mb-2">Load a sample</p>
               <div className="flex flex-wrap gap-2">
                 {SAMPLE_PRODUCTS.map((s) => (
-                  <button
-                    key={s.name}
-                    onClick={() => loadSample(s)}
-                    className="text-xs px-3 py-1.5 rounded-full border border-black/10 dark:border-white/10 hover:border-[#356C4C] hover:text-[#356C4C] transition-colors text-black/60 dark:text-white/60"
-                  >
+                  <button key={s.name} onClick={() => loadSample(s)}
+                    className="text-xs px-3 py-1.5 rounded-full border border-black/10 dark:border-white/10 hover:border-[#356C4C] hover:text-[#356C4C] transition-colors text-black/60 dark:text-white/60">
                     {s.name}
                   </button>
                 ))}
@@ -115,26 +126,12 @@ export default function GeneratePage() {
               <p className="text-sm font-medium text-black/60 dark:text-white/60 mb-3">Tone</p>
               <div className="grid gap-2">
                 {TONES.map((t) => (
-                  <label
-                    key={t.value}
-                    className={`flex items-start gap-3 p-4 rounded-2xl border cursor-pointer transition-all ${
-                      form.tone === t.value
-                        ? "border-[#356C4C] bg-[#356C4C]/5"
-                        : "border-black/10 dark:border-white/10 hover:border-black/20 dark:hover:border-white/20"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="tone"
-                      value={t.value}
-                      checked={form.tone === t.value}
-                      onChange={() => setForm((f) => ({ ...f, tone: t.value }))}
-                      className="mt-0.5 accent-[#356C4C]"
-                    />
+                  <label key={t.value}
+                    className={`flex items-start gap-3 p-4 rounded-2xl border cursor-pointer transition-all ${form.tone === t.value ? "border-[#356C4C] bg-[#356C4C]/5" : "border-black/10 dark:border-white/10 hover:border-black/20 dark:hover:border-white/20"}`}>
+                    <input type="radio" name="tone" value={t.value} checked={form.tone === t.value}
+                      onChange={() => setForm((f) => ({ ...f, tone: t.value }))} className="mt-0.5 accent-[#356C4C]" />
                     <div>
-                      <p className={`text-sm font-medium ${form.tone === t.value ? "text-[#356C4C]" : "text-black dark:text-white"}`}>
-                        {t.label}
-                      </p>
+                      <p className={`text-sm font-medium ${form.tone === t.value ? "text-[#356C4C]" : "text-black dark:text-white"}`}>{t.label}</p>
                       <p className="text-xs text-black/50 dark:text-white/50 mt-0.5">{t.desc}</p>
                     </div>
                   </label>
@@ -142,23 +139,19 @@ export default function GeneratePage() {
               </div>
             </div>
 
-            <Button
-              onClick={generate}
-              disabled={loading || !form.productName || !form.ingredients || !form.weight}
-              size="lg"
-            >
+            <Button onClick={generate} disabled={loading || !form.productName || !form.ingredients || !form.weight} size="lg">
               {loading ? "Generating…" : description ? "Regenerate" : "Generate Description"}
             </Button>
           </div>
 
-          {/* ── Output Panel ── */}
+          {/* Output Panel */}
           <div className="flex flex-col">
             <div className="flex-1 border border-black/10 dark:border-white/10 rounded-3xl overflow-hidden bg-white dark:bg-zinc-900 min-h-[420px] flex flex-col">
               {loading ? (
                 <div className="flex-1 flex items-center justify-center">
                   <div className="text-center">
                     <Loader />
-                    <p className="text-sm text-black/40 dark:text-white/40 mt-4">Claude is writing your listing…</p>
+                    <p className="text-sm text-black/40 dark:text-white/40 mt-4">Gemini is writing your listing…</p>
                   </div>
                 </div>
               ) : description ? (
@@ -171,16 +164,12 @@ export default function GeneratePage() {
                       </span>
                     </div>
                     <div className="flex gap-2">
-                      <button
-                        onClick={() => setEditing((e) => !e)}
-                        className="text-xs px-3 py-1.5 rounded-full border border-black/10 dark:border-white/10 text-black/60 dark:text-white/60 hover:border-black/30 transition-colors"
-                      >
+                      <button onClick={() => setEditing((e) => !e)}
+                        className="text-xs px-3 py-1.5 rounded-full border border-black/10 dark:border-white/10 text-black/60 dark:text-white/60 hover:border-black/30 transition-colors">
                         {editing ? "Done" : "Edit"}
                       </button>
-                      <button
-                        onClick={copy}
-                        className="text-xs px-3 py-1.5 rounded-full bg-[#356C4C] text-white hover:bg-[#2a5840] transition-colors"
-                      >
+                      <button onClick={copy}
+                        className="text-xs px-3 py-1.5 rounded-full bg-[#356C4C] text-white hover:bg-[#2a5840] transition-colors">
                         Copy
                       </button>
                     </div>
@@ -188,11 +177,8 @@ export default function GeneratePage() {
 
                   <div className="flex-1 p-6">
                     {editing ? (
-                      <textarea
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                        className="w-full h-full min-h-[280px] bg-transparent text-black dark:text-white text-base leading-relaxed focus:outline-none resize-none"
-                      />
+                      <textarea value={description} onChange={(e) => setDescription(e.target.value)}
+                        className="w-full h-full min-h-[280px] bg-transparent text-black dark:text-white text-base leading-relaxed focus:outline-none resize-none" />
                     ) : (
                       <p className="text-black dark:text-white text-base leading-relaxed">{description}</p>
                     )}
@@ -201,9 +187,7 @@ export default function GeneratePage() {
                   <div className="px-6 py-3 border-t border-black/5 dark:border-white/5">
                     <p className="text-xs text-black/30 dark:text-white/30">
                       {description.length} characters ·{" "}
-                      {description.length <= 2000
-                        ? "✓ Within Amazon 2000-char limit"
-                        : "⚠ Exceeds Amazon 2000-char limit — trim before listing"}
+                      {description.length <= 2000 ? "✓ Within Amazon 2000-char limit" : "⚠ Exceeds Amazon 2000-char limit — trim before listing"}
                     </p>
                   </div>
                 </>
@@ -214,9 +198,7 @@ export default function GeneratePage() {
                       <span className="text-[#356C4C] text-xl">✦</span>
                     </div>
                     <p className="text-black/40 dark:text-white/40 text-sm">
-                      Fill in the product details and hit Generate.
-                      <br />
-                      Your listing will appear here.
+                      Fill in the product details and hit Generate.<br />Your listing will appear here.
                     </p>
                   </div>
                 </div>
