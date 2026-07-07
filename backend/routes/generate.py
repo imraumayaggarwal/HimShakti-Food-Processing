@@ -12,9 +12,13 @@ TONE_PROMPTS = {
     "traditional": "Use warm, storytelling language rooted in cultural heritage and generational recipes. Mention Uttarakhand/Himalayan provenance.",
     "health-focused": "Use clear, benefit-driven language. Lead with nutritional advantages and clean-label credentials.",
 }
+
+# Try initializing the client and log any startup crashes
 try:
     client = genai.Client()
-except Exception:
+    print("🚀 Gemini SDK Client initialized successfully.")
+except Exception as init_err:
+    print(f"❌ Gemini Client initialization failed layout profile: {str(init_err)}")
     client = None
 
 
@@ -38,7 +42,7 @@ Key Features: {features_str}
 Tone: {body.tone} — {tone_instruction}
 
 Requirements:
-- 80–120 words
+- 40-60 words
 - Start with a strong hook (no generic openers like "Introducing")
 - Include 2–3 specific benefit statements
 - End with a subtle call to action
@@ -49,8 +53,15 @@ Return ONLY the description text. No preamble, no quotes."""
 
     try:
         api_key = os.getenv("GEMINI_API_KEY")
+        
+        # # Explicit check logs to isolate configuration problems
+        # if not api_key:
+        #     print("⚠ DEBUG ERROR: 'GEMINI_API_KEY' is completely missing from os.getenv() execution path context.")
+        # if not client:
+        #     print("⚠ DEBUG ERROR: 'client' object is None (SDK Initialization skipped or broke earlier).")
+
         if not api_key or not client:
-            raise ValueError("No Gemini API key configured")
+            raise ValueError("No Gemini API key or active client configured.")
 
         # Call Gemini 2.5 Flash
         response = client.models.generate_content(
@@ -58,8 +69,9 @@ Return ONLY the description text. No preamble, no quotes."""
             contents=prompt,
         )
         description = response.text.strip()
+        print("✅ Success! Gemini description generated dynamically.")
 
-    except Exception:
+    except Exception as e:
         # Dev fallback
         tone_label = {
             "premium": "Crafted for the discerning palate",
