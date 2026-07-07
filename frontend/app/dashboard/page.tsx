@@ -42,10 +42,10 @@ function StatCard({ label, value, sub }: { label: string; value: string | number
   );
 }
 
-function ProductCard({ product, onDelete }: { product: Product; onDelete: (id: string) => void }) {
+function ProductCard({ product, onDelete, onEditClick }: { product: Product; onDelete: (id: string) => void; onEditClick: (p: Product) => void }) {
   const catColor = CATEGORY_COLORS[product.category] ?? CATEGORY_COLORS.other;
   return (
-    <div className="bg-white dark:bg-zinc-900 border border-black/10 dark:border-white/10 rounded-3xl p-6 flex flex-col gap-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
+    <div onClick={() => onEditClick(product)} className="cursor-pointer bg-white dark:bg-zinc-900 border border-black/10 dark:border-white/10 rounded-3xl p-6 flex flex-col gap-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
       <div className="flex items-start justify-between gap-2">
         <div>
           <h3 className="text-lg font-semibold text-black dark:text-white leading-tight">{product.name}</h3>
@@ -83,7 +83,10 @@ function ProductCard({ product, onDelete }: { product: Product; onDelete: (id: s
           {product.stock != null && <span className="text-sm text-black/40 dark:text-white/40">{product.stock} in stock</span>}
         </div>
         <button
-          onClick={() => onDelete(product.id)}
+          onClick={(e) => {
+            e.stopPropagation(); // Avoid opening the edit modal concurrently
+            onDelete(product.id);
+          }}
           className="text-xs text-red-400 hover:text-red-600 transition-colors px-3 py-1.5 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20"
         >
           Remove
@@ -162,13 +165,106 @@ function AddProductModal({
   );
 }
 
+// ── EDIT PRODUCT MODAL COMPONENT ─────────────────────────────────────────────
+function EditProductModal({
+  open, onClose, product, onUpdate,
+}: {
+  open: boolean;
+  onClose: () => void;
+  product: Product | null;
+  onUpdate: (id: string, updatedData: Partial<Product>) => Promise<void>;
+}) {
+  const [form, setForm] = useState({ name: "", ingredients: "", weight: "", category: "other", features: "", price: "", stock: "", description: "" });
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (product) {
+      setForm({
+        name: product.name,
+        ingredients: product.ingredients,
+        weight: product.weight,
+        category: product.category,
+        features: product.features.join(", "),
+        price: product.price ? product.price.toString() : "",
+        stock: product.stock ? product.stock.toString() : "0",
+        description: product.description || "",
+      });
+    }
+  }, [product]);
+
+  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
+    setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const handleSubmit = async () => {
+    if (!product || !form.name || !form.ingredients || !form.weight) return;
+    setSaving(true);
+    await onUpdate(product.id, {
+      name: form.name,
+      ingredients: form.ingredients,
+      weight: form.weight,
+      category: form.category,
+      features: form.features.split(",").map((s) => s.trim()).filter(Boolean),
+      price: form.price ? parseFloat(form.price) : undefined,
+      stock: form.stock ? parseInt(form.stock) : 0,
+      description: form.description || undefined,
+    });
+    setSaving(false);
+    onClose();
+  };
+
+  if (!open || !product) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white dark:bg-zinc-900 border border-black/10 dark:border-white/10 rounded-3xl p-8 w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl">
+        <h2 className="text-2xl font-semibold text-black dark:text-white mb-6">Modify Product Details</h2>
+        <div className="space-y-4">
+          <Input label="Product Name *" value={form.name} onChange={set("name")} />
+          <Input label="Ingredients *" value={form.ingredients} onChange={set("ingredients")} />
+          <Input label="Weight / Volume *" value={form.weight} onChange={set("weight")} />
+          <div>
+            <label className="block text-sm font-medium text-black/60 dark:text-white/60 mb-1.5">Category</label>
+            <select value={form.category} onChange={set("category")} className="w-full rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-800 text-black dark:text-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#356C4C]/30">
+              {["flour", "pickle", "tea", "juice", "snack", "other"].map((c) => (
+                <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>
+              ))}
+            </select>
+          </div>
+          <Input label="Key Features (comma-separated)" value={form.features} onChange={set("features")} />
+          <div className="grid grid-cols-2 gap-3">
+            <Input label="Price (₹)" value={form.price} onChange={set("price")} />
+            <Input label="Stock (units)" value={form.stock} onChange={set("stock")} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-black/60 dark:text-white/60 mb-1.5">Description</label>
+            <textarea value={form.description} onChange={set("description")} rows={3}
+              className="w-full rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-800 text-black dark:text-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#356C4C]/30 resize-none" />
+          </div>
+        </div>
+        <div className="flex gap-3 mt-6">
+          <button onClick={onClose} className="flex-1 py-3 rounded-full border border-black/10 dark:border-white/10 text-black dark:text-white text-sm hover:bg-black/5 transition-colors">Cancel</button>
+          <button onClick={handleSubmit} disabled={saving || !form.name || !form.ingredients || !form.weight}
+            className="flex-1 py-3 rounded-full bg-[#356C4C] text-white text-sm font-medium hover:bg-[#2a5840] transition-colors">
+            {saving ? "Saving Updates…" : "Save Changes"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const { user, token, loading: authLoading } = useAuth();
   const router = useRouter();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
   const [showAdd, setShowAdd] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
 
@@ -184,9 +280,7 @@ export default function DashboardPage() {
     setError(null);
     try {
       const res = await fetch(`${API}/api/products`, {
-        headers: {
-          "Authorization": `Bearer ${token}`
-        }
+        headers: { "Authorization": `Bearer ${token}` }
       });
       if (!res.ok) throw new Error();
       const data = await res.json();
@@ -222,14 +316,33 @@ export default function DashboardPage() {
     }
   };
 
+  // PUT update function handler logic
+  const handleUpdate = async (id: string, updatedData: Partial<Product>) => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API}/api/products/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(updatedData),
+      });
+      if (!res.ok) throw new Error();
+      const updated = await res.json();
+      setProducts((prev) => prev.map((p) => p.id === id ? updated : p));
+      toast.success("Product updated successfully!");
+    } catch {
+      toast.error("Failed to execute database entity updates.");
+    }
+  };
+
   const handleDelete = async (id: string) => {
     if (!token) return;
     try {
       const res = await fetch(`${API}/api/products/${id}`, { 
         method: "DELETE",
-        headers: {
-          "Authorization": `Bearer ${token}`
-        }
+        headers: { "Authorization": `Bearer ${token}` }
       });
       if (res.status !== 204) throw new Error();
       setProducts((prev) => prev.filter((p) => p.id !== id));
@@ -237,6 +350,11 @@ export default function DashboardPage() {
     } catch {
       toast.error("Failed to remove product");
     }
+  };
+
+  const handleEditClick = (product: Product) => {
+    setSelectedProduct(product);
+    setShowEdit(true);
   };
 
   const filtered = products.filter((p) => {
@@ -306,12 +424,15 @@ export default function DashboardPage() {
           </div>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filtered.map((p) => <ProductCard key={p.id} product={p} onDelete={handleDelete} />)}
+            {filtered.map((p) => <ProductCard key={p.id} product={p} onDelete={handleDelete} onEditClick={handleEditClick} />)}
           </div>
         )}
       </main>
 
       <AddProductModal open={showAdd} onClose={() => setShowAdd(false)} onAdd={handleAdd} />
+      
+      {/* Edit Modal Binder Interface */}
+      <EditProductModal open={showEdit} onClose={() => setShowEdit(false)} product={selectedProduct} onUpdate={handleUpdate} />
     </>
   );
 }
