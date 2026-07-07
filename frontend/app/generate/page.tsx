@@ -7,9 +7,19 @@ import Navbar from "../../components/Navbar";
 import { useAuth } from "@/components/AuthProvider";
 import { Button, Input, Loader } from "../../components/ui";
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
 
 type Tone = "premium" | "traditional" | "health-focused";
+
+type Product = {
+  id: string;
+  name: string;
+  ingredients: string;
+  weight: string;
+  category: string;
+  features: string[];
+  description?: string;
+};
 
 const TONES: { value: Tone; label: string; desc: string }[] = [
   { value: "premium", label: "Premium", desc: "Artisanal, aspirational — for gifting and specialty retail" },
@@ -17,34 +27,67 @@ const TONES: { value: Tone; label: string; desc: string }[] = [
   { value: "health-focused", label: "Health-Focused", desc: "Benefit-driven — for health-conscious Amazon buyers" },
 ];
 
-const SAMPLE_PRODUCTS = [
-  { name: "Himalayan Millet Flour", ingredients: "Finger millet (Ragi)", weight: "500g", features: "Gluten-free, Stone-ground, High calcium" },
-  { name: "Kumaoni Apple Pickle", ingredients: "Himalayan apples, Mustard oil, Rock salt", weight: "250g", features: "No preservatives, Traditional recipe, Handmade" },
-  { name: "Himalayan Herbal Tea", ingredients: "Tulsi, Brahmi, Ginger, Cardamom", weight: "100g", features: "Caffeine-free, Wildcrafted, Immunity boost" },
-];
-
 export default function GeneratePage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, token, loading: authLoading } = useAuth();
   const router = useRouter();
 
+  const [products, setProducts] = useState<Product[]>([]);
+  const [selectedProductId, setSelectedProductId] = useState("");
   const [form, setForm] = useState({ productName: "", ingredients: "", weight: "", features: "", tone: "health-focused" as Tone });
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(false);
 
-  // Auth guard
   useEffect(() => {
     if (!authLoading && !user) {
       router.replace("/login?next=/generate");
     }
   }, [user, authLoading, router]);
 
+  // Fetch live dashboard products to fill up selection list
+  useEffect(() => {
+    const fetchUserInventory = async () => {
+      if (!token) return;
+      try {
+        const res = await fetch(`${API}/api/products`, {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setProducts(data.products || []);
+        }
+      } catch {
+        console.error("Failed loading inventory maps into dropdown filter selections.");
+      }
+    };
+    if (user && token) fetchUserInventory();
+  }, [user, token]);
+
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
 
-  const loadSample = (sample: typeof SAMPLE_PRODUCTS[0]) => {
-    setForm((f) => ({ ...f, productName: sample.name, ingredients: sample.ingredients, weight: sample.weight, features: sample.features }));
-    setDescription("");
+  // Trigger auto-filling layout parameters on selection change
+  const handleSelectProductChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const pId = e.target.value;
+    setSelectedProductId(pId);
+    
+    if (!pId) {
+      setForm({ productName: "", ingredients: "", weight: "", features: "", tone: "health-focused" });
+      setDescription("");
+      return;
+    }
+
+    const match = products.find((p) => p.id === pId);
+    if (match) {
+      setForm({
+        productName: match.name,
+        ingredients: match.ingredients,
+        weight: match.weight,
+        features: match.features.join(", "),
+        tone: "health-focused"
+      });
+      setDescription(match.description || "");
+    }
   };
 
   const generate = async () => {
@@ -67,7 +110,7 @@ export default function GeneratePage() {
       const data = await res.json();
       setDescription(data.description);
     } catch {
-      toast.error("Failed to generate. Check the backend is running.");
+      toast.error("Failed to generate description text output.");
     } finally {
       setLoading(false);
     }
@@ -78,7 +121,7 @@ export default function GeneratePage() {
       await navigator.clipboard.writeText(description);
       toast.success("Copied to clipboard!");
     } catch {
-      toast.error("Copy failed — select and copy manually");
+      toast.error("Copy operation failed.");
     }
   };
 
@@ -98,23 +141,22 @@ export default function GeneratePage() {
           <p className="text-xs uppercase tracking-widest text-black/40 dark:text-white/40 mb-3">AI-Powered</p>
           <h1 className="text-4xl font-semibold text-black dark:text-white">Description Generator</h1>
           <p className="text-black/50 dark:text-white/50 mt-2 text-sm max-w-xl">
-            Turn basic product details into keyword-rich Amazon listings in seconds.
+            Select an existing inventory product layout to instantly process clean optimization metrics.
           </p>
         </div>
 
         <div className="grid lg:grid-cols-2 gap-8">
-          {/* Input Panel */}
           <div className="space-y-5">
+            {/* Dynamic Dropdown Select Input Mapping */}
             <div>
-              <p className="text-xs uppercase tracking-widest text-black/40 dark:text-white/40 mb-2">Load a sample</p>
-              <div className="flex flex-wrap gap-2">
-                {SAMPLE_PRODUCTS.map((s) => (
-                  <button key={s.name} onClick={() => loadSample(s)}
-                    className="text-xs px-3 py-1.5 rounded-full border border-black/10 dark:border-white/10 hover:border-[#356C4C] hover:text-[#356C4C] transition-colors text-black/60 dark:text-white/60">
-                    {s.name}
-                  </button>
+              <label className="block text-sm font-medium text-black/60 dark:text-white/60 mb-1.5">Select Dashboard Product</label>
+              <select value={selectedProductId} onChange={handleSelectProductChange}
+                className="w-full rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-800 text-black dark:text-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#356C4C]/30">
+                <option value="">-- Choose an item to auto-populate fields --</option>
+                {products.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name} ({p.weight})</option>
                 ))}
-              </div>
+              </select>
             </div>
 
             <Input label="Product Name *" placeholder="Himalayan Millet Flour" value={form.productName} onChange={set("productName")} />
@@ -144,7 +186,6 @@ export default function GeneratePage() {
             </Button>
           </div>
 
-          {/* Output Panel */}
           <div className="flex flex-col">
             <div className="flex-1 border border-black/10 dark:border-white/10 rounded-3xl overflow-hidden bg-white dark:bg-zinc-900 min-h-[420px] flex flex-col">
               {loading ? (
@@ -186,8 +227,7 @@ export default function GeneratePage() {
 
                   <div className="px-6 py-3 border-t border-black/5 dark:border-white/5">
                     <p className="text-xs text-black/30 dark:text-white/30">
-                      {description.length} characters ·{" "}
-                      {description.length <= 2000 ? "✓ Within Amazon 2000-char limit" : "⚠ Exceeds Amazon 2000-char limit — trim before listing"}
+                      {description.length} characters
                     </p>
                   </div>
                 </>
@@ -198,7 +238,7 @@ export default function GeneratePage() {
                       <span className="text-[#356C4C] text-xl">✦</span>
                     </div>
                     <p className="text-black/40 dark:text-white/40 text-sm">
-                      Fill in the product details and hit Generate.<br />Your listing will appear here.
+                      Choose an inventory selection option to test AI logic tracking templates.
                     </p>
                   </div>
                 </div>
