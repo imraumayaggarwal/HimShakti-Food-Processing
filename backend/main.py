@@ -19,6 +19,18 @@ from routes.products import router as products_router
 from routes.generate import router as generate_router
 from auth import get_current_user
 
+# Add these imports to the top of backend/main.py
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from fastapi import Request
+
+# Configure global API rate limiter tracking via Client IP
+limiter = Limiter(key_func=get_remote_address)
+app = FastAPI(title="HimShakti API")
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 load_dotenv()
 
 Base.metadata.create_all(bind=engine)
@@ -119,6 +131,18 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
 @app.get("/api/auth/me", status_code=200)
 def me(current_user: dict = Depends(get_current_user)):
     return current_user
+
+@app.post("/api/auth/signup", status_code=201)
+@limiter.limit("5/15minutes")
+def signup(request: Request, body: SignupRequest, db: Session = Depends(get_db)):
+    # ... your existing signup code ...
+    pass
+
+@app.post("/api/auth/login", status_code=200)
+@limiter.limit("5/15minutes")
+def login(request: Request, body: LoginRequest, db: Session = Depends(get_db)):
+    # ... your existing login code ...
+    pass
 
 @app.get("/")
 def root():
