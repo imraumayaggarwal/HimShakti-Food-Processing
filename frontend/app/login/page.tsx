@@ -6,6 +6,9 @@ import { useAuth } from "@/components/AuthProvider";
 import { Input, Button } from "../../components/ui";
 import Link from "next/link";
 import toast, { Toaster } from "react-hot-toast";
+import { loginSchema, signupSchema } from "@/utils/schemas";
+// ── IMPORT NEXT-AUTH SIGNIN CONTROLLER ───────────────────────────────
+import { signIn } from "next-auth/react";
 
 function LoginContent() {
   const searchParams = useSearchParams();
@@ -29,10 +32,13 @@ function LoginContent() {
   }, [user, loading, router, searchParams]);
 
   const handleLogin = async () => {
-    if (!loginForm.email || !loginForm.password) {
-      toast.error("Please fill in all fields");
+    const validation = loginSchema.safeParse(loginForm);
+    if (!validation.success) {
+      // FIX: Changed from .errors to Zod-standard .issues array syntax
+      toast.error(validation.error.issues[0].message);
       return;
     }
+
     setSubmitting(true);
     try {
       await login(loginForm.email, loginForm.password);
@@ -44,18 +50,18 @@ function LoginContent() {
   };
 
   const handleSignup = async () => {
-    if (!signupForm.name || !signupForm.email || !signupForm.password) {
-      toast.error("Please fill in all fields");
+    const validation = signupSchema.safeParse(signupForm);
+    if (!validation.success) { 
+      // FIX: Changed from .errors to Zod-standard .issues array syntax
+      toast.error(validation.error.issues[0].message);
       return;
     }
+
     if (signupForm.password !== signupForm.confirm) {
       toast.error("Passwords don't match");
       return;
     }
-    if (signupForm.password.length < 6) {
-      toast.error("Password must be at least 6 characters");
-      return;
-    }
+
     setSubmitting(true);
     try {
       await signup(signupForm.name, signupForm.email, signupForm.password);
@@ -133,6 +139,28 @@ function LoginContent() {
               >
                 {submitting ? "Signing in…" : "Sign In"}
               </Button>
+
+              {/* ── SEPARATOR INTERFACE DIVIDER ──────────────────────────────── */}
+              <div className="relative my-4">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-black/10 dark:border-white/10"></div>
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-white dark:bg-zinc-900 px-2 text-black/40 dark:text-white/40">
+                    Or continue with
+                  </span>
+                </div>
+              </div>
+
+              <div className="w-full">
+                <Button
+                  onClick={() => signIn("google")}
+                  variant="outline"
+                  size="lg"
+                >
+                  Sign in with Google
+                </Button>
+              </div>
 
               <p className="text-center text-sm text-black/50 dark:text-white/50">
                 Don&apos;t have an account?{" "}
