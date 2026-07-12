@@ -1,68 +1,122 @@
-# 🏔️ HimShakti D2C Portal
+# HimShakti-Food-Processing
 
-<div align="center">
+The main objective of this project is to develop a digital solution for HimShakti Food 
+Processing Unit to improve its online presence and customer reach . Currently , the 
+organization primarily relies on distribution for product sales . The main of the project is that 
+to create a Direct-to-Consumer landing page that showcase products and product and 
+enables customer to place inquiries through WhatsApp . Additionally , an AI-powered 
+commerce listings for online marketplaces. 
 
-[![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
-[![Next.js](https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)](https://nextjs.org)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org)
-[![Gemini](https://img.shields.io/badge/Google%20Gemini-8E75C2?style=for-the-badge&logo=googlegemini&logoColor=white)](https://ai.google.dev)
+# HimShakti Food Processing — Full Stack App
 
-**An intelligent, multi-tenant administrative portal and AI copywriting optimization engine tailored for local Himalayan food processing units.**
-
-[Explore Docs](#-system-architecture) • [Report Bug](https://github.com/your-username/himshakti/issues) • [Request Feature](https://github.com/your-username/himshakti/issues)
-
-</div>
-
----
-
-## 📌 Overview
-
-**HimShakti** is a specialized production management and marketing acceleration engine designed specifically for local food processing operations in Uttarakhand, India. The application simplifies catalog administration for unique regional inventory assets—such as mountain millets, handmade heritage pickles, and wildcrafted teas—while integrating state-of-the-art Generative AI to automate marketplace optimizations.
-
-### ✦ Core Capabilities
-
-* **🔒 Scoped Multi-Tenancy:** Complete layer isolation across database operations using cryptographic JSON Web Token (JWT) signatures. Users operate in sandboxed instances where product storage maps natively to their identity matrix.
-* **🧠 High-Impact Listing Generator:** Direct structural link with the official **Google GenAI SDK (`gemini-2.5-flash`)** to construct high-conversion, keyword-rich Amazon descriptions based on targeted tone frameworks.
-* **📐 Viewport-Optimized Copywriting:** The backend prompt rules enforce text outputs strictly between **40–60 words**. This layout architecture guarantees that your descriptions fit cleanly inside dashboard text panels without causing awkward page overflow.
-* **🔄 Dynamic Context Pre-Filling:** Replaces static template tools with a live inventory binding menu. Selecting an asset auto-populates metadata coordinates and instantly exposes matching saved copywriting blocks.
-* **📊 Live Portfolio Analytics:** Provides real-time calculations monitoring absolute item variance count, unit inventory volume pooling, and dynamic Indian Rupee (₹) net inventory valuation metrics.
-* **✏️ Inline Entity Editing:** Interactive data grids that transform classic static product cards into clickable modal entry fields to complete instant category mutations and live stock adjustments.
+> D2C platform for rural food businesses in Uttarakhand.  
+> AI-generated product descriptions + product management dashboard.
 
 ---
 
-## 🛠️ Tech Stack & Architecture
+## Project Structure
 
-### Core Infrastructure
-* **Backend Interface Layer:** FastAPI ASGI Framework (Python 3.12+)
-* **Storage & Relational Mapper:** Supabase Managed Cloud PostgreSQL paired with SQLAlchemy Core
-* **Intelligence Pipeline:** Google GenAI SDK Engine (`gemini-2.5-flash`)
-* **Security Stack:** URL-Safe Token Encoders, Dynamic SHA-256 HMAC Signatures, HTTPBearer Authentication Middleware
-
-### User Interface Layer
-* **Client Architecture:** Next.js 14+ (App Router Deployment, React Client Hydration Hooks)
-* **State Protection:** Unified React Hooks `AuthContext` Providers coupled with Route-Level Middleware Interceptors
-* **Design Tokens:** Tailwind CSS Engine containing responsive custom dark-mode primitives
-
----
-
-## 📊 System Architecture
-
-```mermaid
-graph LR
-    User([User]) --> Frontend[React + Next.js UI]
-    Frontend <--> |Secure HTTP Requests + JWT| Backend[FastAPI REST API]
-    
-    Backend --> Auth[Pure-Python JWT Auth]
-    Backend --> DB[(Supabase PostgreSQL)]
-    Backend --> Gemini[Google GenAI SDK <br> Gemini 2.5 Flash]
-
-    subgraph Database Models
-        DB --> UsersTable[(users Table)]
-        DB --> ProductsTable[(products Table)]
-    end
-
-    classDef default fill:#1e1e2e,stroke:#313244,stroke-width:1px,color:#cdd6f4;
-    classDef highlight fill:#356C4C,stroke:#a6e3a1,stroke-width:1px,color:#fff;
-    class Frontend,Backend,Gemini highlight;
 ```
+HimShakti-Food-Processing/
+├── backend/
+│   ├── main.py          # FastAPI app — 7 REST endpoints
+│   ├── requirements.txt
+│   ├── .env.example     # Copy to .env and add your API key
+│   └── .gitignore
+├── frontend/
+│   ├── app/
+│   │   ├── dashboard/page.tsx   # Product management + live API
+│   │   ├── generate/page.tsx    # AI description generator
+│   │   ├── login/page.tsx
+│   │   ├── product/page.tsx
+│   │   └── settings/page.tsx
+│   └── components/
+└── README.md
+```
+
 ---
+
+## How to Run Backend Locally
+
+### Prerequisites
+- Python 3.10+
+- pip
+
+### Setup
+
+```bash
+# 1. Navigate to backend
+cd backend
+
+# 2. Create and activate virtual environment
+python -m venv venv
+source venv/bin/activate        # macOS/Linux
+# venv\Scripts\activate         # Windows
+
+# 3. Install dependencies
+pip install -r requirements.txt
+
+# 4. Set up environment variables
+cp .env.example .env
+# Edit .env and add your ANTHROPIC_API_KEY
+
+# 5. Start the server
+uvicorn main:app --reload --port 8000
+```
+
+Server runs at **http://localhost:8000**  
+Interactive API docs at **http://localhost:8000/docs**
+
+---
+
+## API Endpoints
+
+| Method | Endpoint | Description | Status Code |
+|--------|----------|-------------|-------------|
+| GET | `/api/products` | List all products | 200 |
+| GET | `/api/products/{id}` | Get single product | 200 / 404 |
+| POST | `/api/products` | Create product | 201 / 422 |
+| PUT | `/api/products/{id}` | Update product | 200 / 404 |
+| DELETE | `/api/products/{id}` | Delete product | 204 / 404 |
+| GET | `/api/products/search/query?q=&category=` | Search & filter | 200 / 404 |
+| POST | `/api/generate` | AI description generation | 200 |
+
+---
+
+## How to Run Frontend Locally
+
+```bash
+cd frontend
+npm install
+cp .env.local.example .env.local   # set NEXT_PUBLIC_API_URL=http://localhost:8000
+npm run dev
+```
+
+Frontend runs at **http://localhost:3000**
+
+---
+
+## Environment Variables
+
+### Backend (`backend/.env`)
+```
+ANTHROPIC_API_KEY=your_key_here
+```
+
+### Frontend (`frontend/.env.local`)
+```
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
+
+---
+
+## Week 4 Deliverables
+
+- [x] FastAPI backend with 7 REST endpoints
+- [x] Correct HTTP status codes (200, 201, 204, 404, 422, 500)
+- [x] Error handling on all endpoints
+- [x] `.env.example` committed; `.env` gitignored
+- [x] Postman collection: `W4_APICollection_HimShakti.json`
+- [x] Frontend connected to backend (dashboard + generate page)
+- [x] Loading states (Loader component) and error states (Toast component)
+- [x] CORS configured for `localhost:3000`
