@@ -13,10 +13,9 @@ TONE_PROMPTS = {
     "health-focused": "Use clear, benefit-driven language. Lead with nutritional advantages and clean-label credentials.",
 }
 
-# Try initializing the client and log any startup crashes
 try:
     client = genai.Client()
-    print("🚀 Gemini SDK Client initialized successfully.")
+    print("🚀 Gemini SDK Client initialized successfully and tested.")
 except Exception as init_err:
     print(f"❌ Gemini Client initialization failed layout profile: {str(init_err)}")
     client = None
