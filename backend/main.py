@@ -5,7 +5,7 @@ import base64
 import json
 import uuid
 from datetime import datetime, timedelta
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from dotenv import load_dotenv
@@ -69,7 +69,7 @@ def hash_password(password: str) -> str:
 
 @app.post("/api/auth/signup", status_code=201)
 @limiter.limit("5/15minutes")
-def signup(body: SignupRequest, db: Session = Depends(get_db)):
+def signup(request: Request, body: SignupRequest, db: Session = Depends(get_db)): # <--- Added request: Request
     email = body.email.lower().strip()
 
     existing = db.query(UserModel).filter(
@@ -115,7 +115,7 @@ def signup(body: SignupRequest, db: Session = Depends(get_db)):
 
 @app.post("/api/auth/login", status_code=200)
 @limiter.limit("5/15minutes")
-def login(body: LoginRequest, db: Session = Depends(get_db)):
+def login(request: Request, body: LoginRequest, db: Session = Depends(get_db)): 
     email = body.email.lower().strip()
     user = db.query(UserModel).filter(UserModel.email == email).first()
     
