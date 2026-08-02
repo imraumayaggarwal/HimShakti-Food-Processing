@@ -27,22 +27,22 @@ load_dotenv()
 SECRET_KEY = os.getenv("JWT_SECRET", "f12bceed1b75191455cf74501039aac460ee26bfe412f02c94790d994f26f194")
 
 def limiter_key_func(request: Request) -> str:
+    # Skip rate limiting for preflight checks
     if request.method == "OPTIONS":
-        return "options-preflight"
+        return None
     return get_remote_address(request)
 
-
 def _parse_allowed_origins() -> list[str]:
-    raw_origins = os.getenv("CLIENT_URL", "http://localhost:3000")
+    raw_origins = os.getenv("CLIENT_URL", "")
     origins = {
         "http://localhost:3000",
         "http://localhost:5173",
+        "http://localhost:8000",
+        "http://localhost:8001",
     }
-    origins.update(origin.strip() for origin in raw_origins.split(",") if origin.strip())
+    if raw_origins:
+        origins.update(origin.strip().rstrip("/") for origin in raw_origins.split(",") if origin.strip())
     return sorted(origins)
-
-
-allowed_origins = _parse_allowed_origins()
 
 limiter = Limiter(key_func=limiter_key_func)
 
@@ -54,7 +54,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
+    allow_origins=_parse_allowed_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -67,11 +67,6 @@ Base.metadata.create_all(bind=engine)
 
 app.include_router(products_router)
 app.include_router(generate_router)
-
-
-@app.options("/{path:path}", include_in_schema=False)
-def preflight(path: str):
-    return Response(status_code=204)
 
 def _b64encode(data: bytes) -> str:
     return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
@@ -87,15 +82,11 @@ def create_token(payload: dict, expires_hours: int = 72) -> str:
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
 
-
 @app.post("/api/auth/signup", status_code=201)
 @limiter.limit("5/15minutes")
 def signup(request: Request, body: SignupRequest, db: Session = Depends(get_db)):
     email = body.email.lower().strip()
-
-    existing = db.query(UserModel).filter(
-        UserModel.email == email
-    ).first()
+    existing = db.query(UserModel).filter(UserModel.email == email).first()
 
     if existing:
         raise HTTPException(
@@ -104,7 +95,6 @@ def signup(request: Request, body: SignupRequest, db: Session = Depends(get_db))
         )
 
     new_user_id = str(uuid.uuid4())
-
     user = UserModel(
         id=new_user_id,
         email=email,
@@ -117,22 +107,8 @@ def signup(request: Request, body: SignupRequest, db: Session = Depends(get_db))
     db.commit()
     db.refresh(user)
 
-    token = create_token(
-        {
-            "sub": user.id,
-            "email": email,
-            "name": body.name,
-        }
-    )
-
-    return {
-        "token": token,
-        "user": {
-            "id": user.id,
-            "email": email,
-            "name": body.name,
-        },
-    }
+    token = create_token({"sub": user.id, "email": email, "name": body.name})
+    return {"token": token, "user": {"id": user.id, "email": email, "name": body.name}}
 
 @app.post("/api/auth/login", status_code=200)
 @limiter.limit("5/15minutes")
