@@ -5,7 +5,7 @@ import base64
 import json
 import uuid
 from datetime import datetime, timedelta
-from fastapi import FastAPI, HTTPException, Request, Depends
+from fastapi import FastAPI, HTTPException, Request, Depends, Response
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from dotenv import load_dotenv
@@ -26,7 +26,25 @@ load_dotenv()
 
 SECRET_KEY = os.getenv("JWT_SECRET", "f12bceed1b75191455cf74501039aac460ee26bfe412f02c94790d994f26f194")
 
-limiter = Limiter(key_func=get_remote_address)
+def limiter_key_func(request: Request) -> str:
+    if request.method == "OPTIONS":
+        return "options-preflight"
+    return get_remote_address(request)
+
+
+def _parse_allowed_origins() -> list[str]:
+    raw_origins = os.getenv("CLIENT_URL", "http://localhost:3000")
+    origins = {
+        "http://localhost:3000",
+        "http://localhost:5173",
+    }
+    origins.update(origin.strip() for origin in raw_origins.split(",") if origin.strip())
+    return sorted(origins)
+
+
+allowed_origins = _parse_allowed_origins()
+
+limiter = Limiter(key_func=limiter_key_func)
 
 app = FastAPI(
     title="HimShakti API",
@@ -34,23 +52,26 @@ app = FastAPI(
     version="2.0.0",
 )
 
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-
-Base.metadata.create_all(bind=engine)
-
-client_url = os.getenv("CLIENT_URL", "http://localhost:3000")
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[client_url],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+Base.metadata.create_all(bind=engine)
+
 app.include_router(products_router)
 app.include_router(generate_router)
+
+
+@app.options("/{path:path}", include_in_schema=False)
+def preflight(path: str):
+    return Response(status_code=204)
 
 def _b64encode(data: bytes) -> str:
     return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
@@ -69,7 +90,7 @@ def hash_password(password: str) -> str:
 
 @app.post("/api/auth/signup", status_code=201)
 @limiter.limit("5/15minutes")
-def signup(request: Request, body: SignupRequest, db: Session = Depends(get_db)): # <--- Added request: Request
+def signup(request: Request, body: SignupRequest, db: Session = Depends(get_db)):
     email = body.email.lower().strip()
 
     existing = db.query(UserModel).filter(
@@ -115,7 +136,7 @@ def signup(request: Request, body: SignupRequest, db: Session = Depends(get_db))
 
 @app.post("/api/auth/login", status_code=200)
 @limiter.limit("5/15minutes")
-def login(request: Request, body: LoginRequest, db: Session = Depends(get_db)): 
+def login(request: Request, body: LoginRequest, db: Session = Depends(get_db)):
     email = body.email.lower().strip()
     user = db.query(UserModel).filter(UserModel.email == email).first()
     
