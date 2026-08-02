@@ -15,9 +15,7 @@ TONE_PROMPTS = {
 
 try:
     client = genai.Client()
-    print("🚀 Gemini SDK Client initialized successfully and tested.")
 except Exception as init_err:
-    print(f"❌ Gemini Client initialization failed layout profile: {str(init_err)}")
     client = None
 
 
@@ -53,12 +51,6 @@ Return ONLY the description text. No preamble, no quotes."""
     try:
         api_key = os.getenv("GEMINI_API_KEY")
         
-        # # Explicit check logs to isolate configuration problems
-        # if not api_key:
-        #     print("⚠ DEBUG ERROR: 'GEMINI_API_KEY' is completely missing from os.getenv() execution path context.")
-        # if not client:
-        #     print("⚠ DEBUG ERROR: 'client' object is None (SDK Initialization skipped or broke earlier).")
-
         if not api_key or not client:
             raise ValueError("No Gemini API key or active client configured.")
 
@@ -68,7 +60,6 @@ Return ONLY the description text. No preamble, no quotes."""
             contents=prompt,
         )
         description = response.text.strip()
-        print("✅ Success! Gemini description generated dynamically.")
 
     except Exception as e:
         # Dev fallback

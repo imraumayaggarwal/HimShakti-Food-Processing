@@ -1,122 +1,67 @@
-# HimShakti-Food-Processing
+# HimShakti Food Processing
 
-The main objective of this project is to develop a digital solution for HimShakti Food 
-Processing Unit to improve its online presence and customer reach . Currently , the 
-organization primarily relies on distribution for product sales . The main of the project is that 
-to create a Direct-to-Consumer landing page that showcase products and product and 
-enables customer to place inquiries through WhatsApp . Additionally , an AI-powered 
-commerce listings for online marketplaces. 
+Full stack D2C platform for rural food businesses in Uttarakhand.
 
-# HimShakti Food Processing — Full Stack App
+## Production Deployment
 
-> D2C platform for rural food businesses in Uttarakhand.  
-> AI-generated product descriptions + product management dashboard.
+### Frontend on Vercel
 
----
+1. Import the repository into Vercel.
+2. Set the Root Directory to `frontend`.
+3. Add the environment variable `NEXT_PUBLIC_API_URL` with your deployed backend URL.
+4. Deploy the app. Vercel will use the Next.js build automatically.
 
-## Project Structure
+### Backend on Render
 
-```
-HimShakti-Food-Processing/
-├── backend/
-│   ├── main.py          # FastAPI app — 7 REST endpoints
-│   ├── requirements.txt
-│   ├── .env.example     # Copy to .env and add your API key
-│   └── .gitignore
-├── frontend/
-│   ├── app/
-│   │   ├── dashboard/page.tsx   # Product management + live API
-│   │   ├── generate/page.tsx    # AI description generator
-│   │   ├── login/page.tsx
-│   │   ├── product/page.tsx
-│   │   └── settings/page.tsx
-│   └── components/
-└── README.md
-```
+1. Create a new Web Service on Render from this repository.
+2. Set the Root Directory to `backend`.
+3. Use the start command `uvicorn main:app --host 0.0.0.0 --port $PORT`.
+4. Add the backend environment variables listed below.
+5. Deploy the service and copy the Render URL into `NEXT_PUBLIC_API_URL` on Vercel.
 
----
+## Environment Variables
 
-## How to Run Backend Locally
+### Frontend
 
-### Prerequisites
-- Python 3.10+
-- pip
-
-### Setup
+`frontend/.env.local`
 
 ```bash
-# 1. Navigate to backend
+NEXT_PUBLIC_API_URL=https://your-render-backend.onrender.com
+```
+
+### Backend
+
+`backend/.env`
+
+```bash
+DATABASE_URL=postgresql://user:password@host:5432/dbname
+CLIENT_URL=https://your-vercel-app.vercel.app
+JWT_SECRET=replace-with-a-long-random-secret
+GEMINI_API_KEY=your-gemini-api-key
+```
+
+## Local Development
+
+### Backend
+
+```bash
 cd backend
-
-# 2. Create and activate virtual environment
 python -m venv venv
-source venv/bin/activate        # macOS/Linux
-# venv\Scripts\activate         # Windows
-
-# 3. Install dependencies
+venv\Scripts\activate
 pip install -r requirements.txt
-
-# 4. Set up environment variables
-cp .env.example .env
-# Edit .env and add your ANTHROPIC_API_KEY
-
-# 5. Start the server
+copy .env.example .env
 uvicorn main:app --reload --port 8000
 ```
 
-Server runs at **http://localhost:8000**  
-Interactive API docs at **http://localhost:8000/docs**
-
----
-
-## API Endpoints
-
-| Method | Endpoint | Description | Status Code |
-|--------|----------|-------------|-------------|
-| GET | `/api/products` | List all products | 200 |
-| GET | `/api/products/{id}` | Get single product | 200 / 404 |
-| POST | `/api/products` | Create product | 201 / 422 |
-| PUT | `/api/products/{id}` | Update product | 200 / 404 |
-| DELETE | `/api/products/{id}` | Delete product | 204 / 404 |
-| GET | `/api/products/search/query?q=&category=` | Search & filter | 200 / 404 |
-| POST | `/api/generate` | AI description generation | 200 |
-
----
-
-## How to Run Frontend Locally
+### Frontend
 
 ```bash
 cd frontend
 npm install
-cp .env.local.example .env.local   # set NEXT_PUBLIC_API_URL=http://localhost:8000
+copy .env.example .env.local
 npm run dev
 ```
 
-Frontend runs at **http://localhost:3000**
+## Known Limitations
 
----
-
-## Environment Variables
-
-### Backend (`backend/.env`)
-```
-ANTHROPIC_API_KEY=your_key_here
-```
-
-### Frontend (`frontend/.env.local`)
-```
-NEXT_PUBLIC_API_URL=http://localhost:8000
-```
-
----
-
-## Week 4 Deliverables
-
-- [x] FastAPI backend with 7 REST endpoints
-- [x] Correct HTTP status codes (200, 201, 204, 404, 422, 500)
-- [x] Error handling on all endpoints
-- [x] `.env.example` committed; `.env` gitignored
-- [x] Postman collection: `W4_APICollection_HimShakti.json`
-- [x] Frontend connected to backend (dashboard + generate page)
-- [x] Loading states (Loader component) and error states (Toast component)
-- [x] CORS configured for `localhost:3000`
+- Render free-tier services spin down after about 15 minutes of inactivity, so the first request after idle can take extra time while the backend wakes up.
